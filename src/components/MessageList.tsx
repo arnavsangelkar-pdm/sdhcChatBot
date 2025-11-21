@@ -57,8 +57,9 @@ export function MessageList({ messages, onSuggestedQuestionClick, nextSuggestedQ
                 )}
               </div>
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
       
       {nextSuggestedQuestion && onSuggestedQuestionClick && (
         <div className="flex justify-start mt-3 mb-2">
