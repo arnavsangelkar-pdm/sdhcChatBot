@@ -96,15 +96,6 @@ When you reach out, it can help to have your paperwork ready—like your evictio
 
 The flow handles typos, missing punctuation, casual language, and variations. Here are examples of badly worded questions that will still match:
 
-### Question 1 Variations:
-- `i just got an eviction notice what do i do` (no punctuation, all lowercase)
-- `i got a eviciton notice` (typo: "eviciton" instead of "eviction")
-- `i got an evction notice` (typo: "evction" missing 'i')
-- `help eviction notice` (very casual, missing words)
-- `my landlord is evicting me` (different phrasing, same intent)
-- `my landord is evicting me` (typo: "landord" instead of "landlord")
-- `got eviction notice help` (minimal, word order changed)
-- `eviction notice what now` (casual, missing words)
 
 ### Question 2 Variations:
 - `can my landlord evict me for this` (no punctuation)
@@ -165,8 +156,4 @@ The flow handles typos, missing punctuation, casual language, and variations. He
 - `contact sdhc` (very minimal)
 - `sdhc phone number` (different intent but may match)
 
-**How it works:** The matching logic:
-1. Normalizes text (lowercase, removes punctuation, normalizes spaces)
-2. Checks against exact variants in `userQuestionVariants`
-3. Uses partial word matching - if at least half the significant words (4+ characters) match, it accepts the question
-4. Handles typos through the variant list and fuzzy word matching
+

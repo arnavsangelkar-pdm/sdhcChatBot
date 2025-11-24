@@ -8,7 +8,7 @@ export function getNextTurn(flow: Flow, currentTurnIndex: number): FlowTurn | nu
   return null;
 }
 
-export function isFollowUpMatch(userText: string, nextTurn: FlowTurn): boolean {
+export function isFollowUpMatch(userText: string, turn: FlowTurn): boolean {
   const normalize = (s: string) =>
     s.toLowerCase().replace(/[?.,!]/g, '').replace(/\s+/g, " ").trim();
 
@@ -16,8 +16,8 @@ export function isFollowUpMatch(userText: string, nextTurn: FlowTurn): boolean {
 
   // Build list of candidates: main question + variants
   const candidates = [
-    nextTurn.userQuestion,
-    ...(nextTurn.userQuestionVariants ?? []),
+    turn.userQuestion,
+    ...(turn.userQuestionVariants ?? []),
   ].map(normalize);
 
   // Simple direct match or "contains" check
@@ -31,5 +31,16 @@ export function isFollowUpMatch(userText: string, nextTurn: FlowTurn): boolean {
     const matchedWords = words.filter((w) => normalizedInput.includes(w));
     return matchedWords.length >= Math.max(1, Math.floor(words.length / 2));
   });
+}
+
+// Find which turn in a flow matches the user's question (for eviction flow, allows jumping to any turn)
+export function findMatchingTurn(flow: Flow, userText: string): { turn: FlowTurn; index: number } | null {
+  for (let i = 0; i < flow.turns.length; i++) {
+    const turn = flow.turns[i];
+    if (isFollowUpMatch(userText, turn)) {
+      return { turn, index: i };
+    }
+  }
+  return null;
 }
 

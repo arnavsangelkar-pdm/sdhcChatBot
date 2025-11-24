@@ -4,7 +4,7 @@ import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
 import { SDHC_FLOWS } from "../data/sdhcFlows";
 import { findBestFAQMatch, getFallbackMessage } from "../utils/matchQuestion";
-import { getNextTurn, isFollowUpMatch } from "../utils/flowNavigator";
+import { getNextTurn, isFollowUpMatch, findMatchingTurn } from "../utils/flowNavigator";
 
 interface ChatProps {}
 
@@ -74,38 +74,54 @@ export const Chat = forwardRef<ChatHandle, ChatProps>((_props, ref) => {
 
     // Process response after a short delay
     setTimeout(() => {
+      // Special handling for eviction flow: allow matching any turn, not just sequential
+      const evictionFlow = SDHC_FLOWS.find((f) => f.id === "eviction-notice-help");
+      if (evictionFlow) {
+        const matchingTurn = findMatchingTurn(evictionFlow, userText);
+        if (matchingTurn) {
+          // Found a matching turn in eviction flow
+          setActiveFlowId("eviction-notice-help");
+          setCurrentTurnIndex(matchingTurn.index);
+          addMessage("bot", matchingTurn.turn.botAnswer, "eviction-notice-help", matchingTurn.turn.id, matchingTurn.turn.relatedLinks);
+          return;
+        }
+      }
+
       if (activeFlowId) {
         const flow = SDHC_FLOWS.find((f) => f.id === activeFlowId);
         if (flow) {
-          const nextTurn = getNextTurn(flow, currentTurnIndex);
-          
-          if (nextTurn && isFollowUpMatch(userText, nextTurn)) {
-            // Matched next turn in flow
-            const newIndex = currentTurnIndex + 1;
-            setCurrentTurnIndex(newIndex);
-            addMessage("bot", nextTurn.botAnswer, activeFlowId, nextTurn.id, nextTurn.relatedLinks);
-            return;
-          } else {
-            // Didn't match next turn, check if flow is complete
-            if (currentTurnIndex >= flow.turns.length - 1) {
-              // Flow is complete, fall back to FAQ
-              const faqMatch = findBestFAQMatch(userText);
-              if (faqMatch) {
-                addMessage("bot", faqMatch.answer, undefined, undefined, faqMatch.relatedLinks);
-              } else {
-                addMessage("bot", getFallbackMessage());
-              }
-              setActiveFlowId(null);
-              setCurrentTurnIndex(-1);
+          // For eviction flow, we already handled it above, so this is for other flows
+          if (flow.id !== "eviction-notice-help") {
+            const nextTurn = getNextTurn(flow, currentTurnIndex);
+            
+            if (nextTurn && isFollowUpMatch(userText, nextTurn)) {
+              // Matched next turn in flow
+              const newIndex = currentTurnIndex + 1;
+              setCurrentTurnIndex(newIndex);
+              addMessage("bot", nextTurn.botAnswer, activeFlowId, nextTurn.id, nextTurn.relatedLinks);
               return;
+            } else {
+              // Didn't match next turn, check if flow is complete
+              if (currentTurnIndex >= flow.turns.length - 1) {
+                // Flow is complete, fall back to FAQ
+                const faqMatch = findBestFAQMatch(userText);
+                if (faqMatch) {
+                  addMessage("bot", faqMatch.answer, undefined, undefined, faqMatch.relatedLinks);
+                } else {
+                  addMessage("bot", getFallbackMessage());
+                }
+                setActiveFlowId(null);
+                setCurrentTurnIndex(-1);
+                return;
+              }
             }
           }
         }
       }
 
-      // Check if user's question matches the first turn of any flow (especially eviction flow)
+      // Check if user's question matches the first turn of any flow (for non-eviction flows)
       for (const flow of SDHC_FLOWS) {
-        if (flow.turns.length > 0) {
+        if (flow.id !== "eviction-notice-help" && flow.turns.length > 0) {
           const firstTurn = flow.turns[0];
           if (isFollowUpMatch(userText, firstTurn)) {
             // Start this flow

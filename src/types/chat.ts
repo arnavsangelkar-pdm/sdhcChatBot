@@ -9,3 +9,5 @@ export type ChatMessage = {
   relatedLinks?: { label: string; url: string }[];
 };
 
+
+
