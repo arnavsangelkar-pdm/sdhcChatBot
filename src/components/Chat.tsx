@@ -4,7 +4,7 @@ import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
 import { SDHC_FLOWS } from "../data/sdhcFlows";
 import { findBestFAQMatch, getFallbackMessage } from "../utils/matchQuestion";
-import { getNextTurn, isFollowUpMatch, findMatchingTurn } from "../utils/flowNavigator";
+import { getNextTurn, isFollowUpMatch } from "../utils/flowNavigator";
 
 interface ChatProps {}
 
@@ -74,54 +74,47 @@ export const Chat = forwardRef<ChatHandle, ChatProps>((_props, ref) => {
 
     // Process response after a short delay
     setTimeout(() => {
-      // Special handling for eviction flow: allow matching any turn, not just sequential
-      const evictionFlow = SDHC_FLOWS.find((f) => f.id === "eviction-notice-help");
-      if (evictionFlow) {
-        const matchingTurn = findMatchingTurn(evictionFlow, userText);
-        if (matchingTurn) {
-          // Found a matching turn in eviction flow
-          setActiveFlowId("eviction-notice-help");
-          setCurrentTurnIndex(matchingTurn.index);
-          addMessage("bot", matchingTurn.turn.botAnswer, "eviction-notice-help", matchingTurn.turn.id, matchingTurn.turn.relatedLinks);
-          return;
-        }
-      }
-
       if (activeFlowId) {
         const flow = SDHC_FLOWS.find((f) => f.id === activeFlowId);
         if (flow) {
-          // For eviction flow, we already handled it above, so this is for other flows
-          if (flow.id !== "eviction-notice-help") {
-            const nextTurn = getNextTurn(flow, currentTurnIndex);
-            
-            if (nextTurn && isFollowUpMatch(userText, nextTurn)) {
-              // Matched next turn in flow
-              const newIndex = currentTurnIndex + 1;
-              setCurrentTurnIndex(newIndex);
-              addMessage("bot", nextTurn.botAnswer, activeFlowId, nextTurn.id, nextTurn.relatedLinks);
+          const nextTurn = getNextTurn(flow, currentTurnIndex);
+          
+          if (nextTurn && isFollowUpMatch(userText, nextTurn)) {
+            // Matched next turn in flow - advance to next turn
+            const newIndex = currentTurnIndex + 1;
+            setCurrentTurnIndex(newIndex);
+            addMessage("bot", nextTurn.botAnswer, activeFlowId, nextTurn.id, nextTurn.relatedLinks);
+            return;
+          } else {
+            // Didn't match next turn
+            if (currentTurnIndex >= flow.turns.length - 1) {
+              // Flow is complete, fall back to FAQ
+              const faqMatch = findBestFAQMatch(userText);
+              if (faqMatch) {
+                addMessage("bot", faqMatch.answer, undefined, undefined, faqMatch.relatedLinks);
+              } else {
+                addMessage("bot", getFallbackMessage());
+              }
+              setActiveFlowId(null);
+              setCurrentTurnIndex(-1);
               return;
             } else {
-              // Didn't match next turn, check if flow is complete
-              if (currentTurnIndex >= flow.turns.length - 1) {
-                // Flow is complete, fall back to FAQ
-                const faqMatch = findBestFAQMatch(userText);
-                if (faqMatch) {
-                  addMessage("bot", faqMatch.answer, undefined, undefined, faqMatch.relatedLinks);
-                } else {
-                  addMessage("bot", getFallbackMessage());
-                }
-                setActiveFlowId(null);
-                setCurrentTurnIndex(-1);
-                return;
+              // Still in flow but didn't match next turn - give helpful message
+              const nextTurn = getNextTurn(flow, currentTurnIndex);
+              if (nextTurn) {
+                addMessage("bot", `I'm here to help with the eviction notice flow. The next question I can answer is: "${nextTurn.userQuestion}"`, activeFlowId);
+              } else {
+                addMessage("bot", getFallbackMessage());
               }
+              return;
             }
           }
         }
       }
 
-      // Check if user's question matches the first turn of any flow (for non-eviction flows)
+      // Check if user's question matches the first turn of any flow
       for (const flow of SDHC_FLOWS) {
-        if (flow.id !== "eviction-notice-help" && flow.turns.length > 0) {
+        if (flow.turns.length > 0) {
           const firstTurn = flow.turns[0];
           if (isFollowUpMatch(userText, firstTurn)) {
             // Start this flow

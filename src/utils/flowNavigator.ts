@@ -33,14 +33,4 @@ export function isFollowUpMatch(userText: string, turn: FlowTurn): boolean {
   });
 }
 
-// Find which turn in a flow matches the user's question (for eviction flow, allows jumping to any turn)
-export function findMatchingTurn(flow: Flow, userText: string): { turn: FlowTurn; index: number } | null {
-  for (let i = 0; i < flow.turns.length; i++) {
-    const turn = flow.turns[i];
-    if (isFollowUpMatch(userText, turn)) {
-      return { turn, index: i };
-    }
-  }
-  return null;
-}
 
